@@ -1,0 +1,8 @@
+{
+  "name": "CrediPulse",
+  "description": "Real-time loan application and management platform with automated credit risk assessment, secure repayment gateway, and admin approvals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

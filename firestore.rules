@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'ADMIN' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
+      );
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['username', 'fullName', 'email', 'role', 'kycStatus']) &&
+        data.username is string && data.username.size() >= 3 &&
+        data.fullName is string && data.fullName.size() >= 2 &&
+        data.email is string &&
+        data.role in ['CUSTOMER', 'ADMIN'] &&
+        data.kycStatus in ['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED'];
+    }
+
+    function isValidLoan(data) {
+      return data.keys().hasAll(['userId', 'loanType', 'principalAmount', 'tenorMonths', 'status']) &&
+        data.userId is string &&
+        data.loanType is string &&
+        data.principalAmount is number && data.principalAmount > 0 &&
+        data.tenorMonths is int && data.tenorMonths > 0 &&
+        data.status in ['PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'ACTIVE', 'COMPLETED'];
+    }
+
+    function isValidDocument(data) {
+      return data.keys().hasAll(['userId', 'docType', 'fileName', 'status']) &&
+        data.userId is string &&
+        data.docType is string &&
+        data.fileName is string &&
+        data.status in ['IN_REVIEW', 'VERIFIED', 'REJECTED'];
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['channelType', 'recipient', 'body', 'externalGateway', 'status']) &&
+        data.channelType in ['SMS', 'EMAIL', 'APP_PUSH'] &&
+        data.externalGateway in ['TWILIO_SMS', 'SENDGRID_EMAIL', 'FCM_PUSH'] &&
+        data.status in ['DELIVERED', 'SENT', 'PENDING'];
+    }
+
+    // Users Collection: User reads their own profile, Admins read all
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Loans Collection: Customer sees own loans, Admin can review & update status
+    match /loans/{loanId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && isValidLoan(request.resource.data);
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid && isValidLoan(request.resource.data));
+      allow delete: if isAdmin();
+    }
+
+    // Per-Account File Storage & KYC Documents Vault: Strict account isolation
+    match /user_documents/{documentId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && isValidDocument(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin()) && isValidDocument(request.resource.data);
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Multi-channel Communication Messages: SMS, Email, Push
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidMessage(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role-based access control and encrypted credentials.",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["CUSTOMER", "ADMIN"] },
+        "kycStatus": { "type": "string", "enum": ["PENDING_VERIFICATION", "VERIFIED", "REJECTED"] },
+        "monthlyIncome": { "type": "number" },
+        "companyName": { "type": "string" }
+      },
+      "required": ["username", "fullName", "email", "role", "kycStatus"]
+    },
+    "Loan": {
+      "title": "Loan",
+      "description": "Credit loan application with status, risk score, and real-time ledger balance.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "loanType": { "type": "string" },
+        "principalAmount": { "type": "number" },
+        "tenorMonths": { "type": "integer" },
+        "status": { "type": "string", "enum": ["PENDING_APPROVAL", "APPROVED", "REJECTED", "ACTIVE", "COMPLETED"] },
+        "availableBalance": { "type": "number" },
+        "remainingBalance": { "type": "number" }
+      },
+      "required": ["userId", "loanType", "principalAmount", "tenorMonths", "status"]
+    },
+    "UserDocument": {
+      "title": "UserDocument",
+      "description": "Per-account secure KYC and proof file vault.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "docType": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileSizeKb": { "type": "integer" },
+        "mimeType": { "type": "string" },
+        "status": { "type": "string", "enum": ["IN_REVIEW", "VERIFIED", "REJECTED"] },
+        "integrityHash": { "type": "string" }
+      },
+      "required": ["userId", "docType", "fileName", "status"]
+    },
+    "CommunicationMessage": {
+      "title": "CommunicationMessage",
+      "description": "Multi-channel notification dispatched via SMS (Twilio), Email (SendGrid), or App Push (FCM).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "channelType": { "type": "string", "enum": ["SMS", "EMAIL", "APP_PUSH"] },
+        "recipient": { "type": "string" },
+        "subject": { "type": "string" },
+        "body": { "type": "string" },
+        "externalGateway": { "type": "string", "enum": ["TWILIO_SMS", "SENDGRID_EMAIL", "FCM_PUSH"] },
+        "status": { "type": "string", "enum": ["DELIVERED", "SENT", "PENDING"] }
+      },
+      "required": ["channelType", "recipient", "body", "externalGateway", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Customer and Administrator account profiles."
+    },
+    "/loans/{loanId}": {
+      "schema": "Loan",
+      "description": "Credit loan contracts and underwriting records."
+    },
+    "/user_documents/{documentId}": {
+      "schema": "UserDocument",
+      "description": "Encrypted KYC proof documents isolated by user account."
+    },
+    "/messages/{messageId}": {
+      "schema": "CommunicationMessage",
+      "description": "Multi-channel communications logged across SMS, Email, and Push."
+    }
+  }
+}
